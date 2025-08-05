@@ -49,34 +49,29 @@ app.post('/create-order', async (req, res) => {
 
 
 // 2. Endpoint to verify the payment signature from the client
-app.post('/verify-signature', async (req, res) => { // FIX: Renamed endpoint for clarity
-    // FIX: Corrected destructuring
+app.post('/verify-signature', async (req, res) => {
     const { order_id, payment_id, razorpay_signature } = req.body;
+
+    // --- ADD THIS LOGGING CODE ---
+    console.log("--- Verification Request Received ---");
+    console.log("Received Order ID:", order_id);
+    console.log("Received Payment ID:", payment_id);
+    console.log("Received Signature:", razorpay_signature);
+    // -----------------------------
 
     const key_secret = process.env.RAZORPAY_KEY_SECRET;
 
-    // Create a signature using crypto
     const generated_signature = crypto
         .createHmac('sha256', key_secret)
         .update(order_id + "|" + payment_id)
         .digest('hex');
 
-    // FIX: Comparing with the correct variable 'razorpay_signature'
     if (generated_signature === razorpay_signature) {
         console.log("Payment is legitimate.");
-        try {
-            await Order.findOneAndUpdate(
-                { razorpayOrderId: order_id },
-                { status: 'successful' }
-            );
-            // FIX: Correct way to send a success response
-            res.status(200).send('Payment verified successfully.');
-        } catch (error) { // FIX: Using the correct error variable 'error'
-            console.error("Database update error:", error);
-            res.status(500).send('Error updating database.');
-        }
+        // ... rest of the success logic ...
+        res.status(200).send('Payment verified successfully.');
     } else {
-        console.error("Invalid signature received.");
+        console.error("Invalid signature received. Verification failed.");
         res.status(400).send('Invalid signature.');
     }
 });
