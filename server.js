@@ -27,6 +27,9 @@ const razorpayInstance = new Razorpay({
 
 // 1. Endpoint to create a Razorpay order
 app.post('/create-order', async (req, res) => {
+
+    console.log("Received /create-order request with body:", req.body);
+
     const { amount } = req.body;
     const options = {
         amount: amount * 100, // Amount in paise
@@ -49,33 +52,45 @@ app.post('/create-order', async (req, res) => {
 
 
 // 2. Endpoint to verify the payment signature from the client
+// 2. Endpoint to verify the payment signature from the client
 app.post('/verify-signature', async (req, res) => {
     const { order_id, payment_id, razorpay_signature } = req.body;
 
-    // --- ADD THIS LOGGING CODE ---
+    // --- Your logging code is correct ---
     console.log("--- Verification Request Received ---");
     console.log("Received Order ID:", order_id);
     console.log("Received Payment ID:", payment_id);
     console.log("Received Signature:", razorpay_signature);
-    // -----------------------------
+    // ------------------------------------
 
     const key_secret = process.env.RAZORPAY_KEY_SECRET;
 
     const generated_signature = crypto
-        .createHmac('sha256', key_secret)
+        .createHmac('sha256', key_secret) // Make sure this is 'sha256'
         .update(order_id + "|" + payment_id)
         .digest('hex');
 
     if (generated_signature === razorpay_signature) {
         console.log("Payment is legitimate.");
-        // ... rest of the success logic ...
-        res.status(200).send('Payment verified successfully.');
+
+        // --- FIX: ADD THIS DATABASE UPDATE LOGIC BACK IN ---
+        try {
+            await Order.findOneAndUpdate(
+                { razorpayOrderId: order_id },
+                { status: 'successful' }
+            );
+            res.status(200).send('Payment verified successfully.');
+        } catch (error) {
+            console.error("Database update error:", error);
+            res.status(500).send('Error updating database.');
+        }
+        // ----------------------------------------------------
+
     } else {
         console.error("Invalid signature received. Verification failed.");
         res.status(400).send('Invalid signature.');
     }
 });
-
 
 // --- Start the Server ---
 app.listen(PORT, () => {
